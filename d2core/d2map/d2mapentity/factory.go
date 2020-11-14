@@ -6,7 +6,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
-	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2fileformats/d2tbl"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2interface"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2math/d2vector"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2resource"
@@ -64,7 +63,8 @@ func NewAnimatedEntity(x, y int, animation d2interface.Animation) *AnimatedEntit
 
 // NewPlayer creates a new player entity and returns a pointer to it.
 func (f *MapEntityFactory) NewPlayer(id, name string, x, y, direction int, heroType d2enum.Hero,
-	stats *d2hero.HeroStatsState, skills map[int]*d2hero.HeroSkill, equipment *d2inventory.CharacterEquipment) *Player {
+	stats *d2hero.HeroStatsState, skills map[int]*d2hero.HeroSkill, equipment *d2inventory.CharacterEquipment,
+	leftSkill, rightSkill int) *Player {
 	layerEquipment := &[d2enum.CompositeTypeMax]string{
 		d2enum.CompositeTypeHead:      equipment.Head.GetArmorClass(),
 		d2enum.CompositeTypeTorso:     equipment.Torso.GetArmorClass(),
@@ -85,20 +85,16 @@ func (f *MapEntityFactory) NewPlayer(id, name string, x, y, direction int, heroT
 	stats.NextLevelExp = f.asset.Records.GetExperienceBreakpoint(heroType, stats.Level)
 	stats.Stamina = float64(stats.MaxStamina)
 
-	defaultCharStats := f.asset.Records.Character.Stats[heroType]
-	statsState := f.HeroStateFactory.CreateHeroStatsState(heroType, defaultCharStats)
-	heroState, _ := f.CreateHeroState(name, heroType, statsState)
+	heroState, _ := f.CreateHeroState(name, heroType, stats)
 
-	attackSkillID := 0
 	result := &Player{
-		mapEntity: newMapEntity(x, y),
-		composite: composite,
-		Equipment: equipment,
-		Stats:     heroState.Stats,
-		Skills:    heroState.Skills,
-		// https://github.com/OpenDiablo2/OpenDiablo2/issues/799
-		LeftSkill:  heroState.Skills[attackSkillID],
-		RightSkill: heroState.Skills[attackSkillID],
+		mapEntity:  newMapEntity(x, y),
+		composite:  composite,
+		Equipment:  equipment,
+		Stats:      heroState.Stats,
+		Skills:     heroState.Skills,
+		LeftSkill:  heroState.Skills[leftSkill],
+		RightSkill: heroState.Skills[rightSkill],
 		name:       name,
 		Class:      heroType,
 		//nameLabel:    d2ui.NewLabel(d2resource.FontFormal11, d2resource.PaletteStatic),
@@ -108,7 +104,6 @@ func (f *MapEntityFactory) NewPlayer(id, name string, x, y, direction int, heroT
 	}
 
 	result.mapEntity.uuid = id
-	// https://github.com/OpenDiablo2/OpenDiablo2/issues/799
 	result.SetSpeed(baseWalkSpeed)
 	result.mapEntity.directioner = result.rotate
 	err = composite.SetMode(d2enum.PlayerAnimationModeTownNeutral, equipment.RightHand.GetWeaponClass())
@@ -222,7 +217,7 @@ func (f *MapEntityFactory) NewNPC(x, y int, monstat *d2records.MonStatsRecord, d
 	result.composite.SetDirection(direction)
 
 	if result.monstatRecord != nil && result.monstatRecord.IsInteractable {
-		result.name = d2tbl.TranslateString(result.monstatRecord.NameString)
+		result.name = f.asset.TranslateString(result.monstatRecord.NameString)
 	}
 
 	return result, nil
@@ -273,7 +268,7 @@ func (f *MapEntityFactory) NewObject(x, y int, objectRec *d2records.ObjectDetail
 		uuid:         uuid.New().String(),
 		objectRecord: objectRec,
 		Position:     d2vector.NewPosition(locX, locY),
-		name:         d2tbl.TranslateString(objectRec.Name),
+		name:         f.asset.TranslateString(objectRec.Name),
 	}
 	objectType := f.asset.Records.Object.Types[objectRec.Index]
 

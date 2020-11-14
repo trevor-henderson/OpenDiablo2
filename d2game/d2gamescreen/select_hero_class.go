@@ -10,12 +10,10 @@ import (
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2inventory"
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
-	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2fileformats/d2tbl"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2interface"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2resource"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2util"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2asset"
-	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2gui"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2screen"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2ui"
 	"github.com/OpenDiablo2/OpenDiablo2/d2networking/d2client/d2clientconnectiontype"
@@ -413,36 +411,36 @@ func (v *SelectHeroClass) createLabels() {
 
 	v.headingLabel.SetPosition(headingX-halfFontWidth, headingY)
 	v.headingLabel.SetText("Select Hero Class")
-	v.headingLabel.Alignment = d2gui.HorizontalAlignCenter
+	v.headingLabel.Alignment = d2ui.HorizontalAlignCenter
 
 	v.heroClassLabel = v.uiManager.NewLabel(d2resource.Font30, d2resource.PaletteUnits)
-	v.heroClassLabel.Alignment = d2gui.HorizontalAlignCenter
+	v.heroClassLabel.Alignment = d2ui.HorizontalAlignCenter
 	v.heroClassLabel.SetPosition(heroClassLabelX, heroClassLabelY)
 
 	v.heroDesc1Label = v.uiManager.NewLabel(d2resource.Font16, d2resource.PaletteUnits)
-	v.heroDesc1Label.Alignment = d2gui.HorizontalAlignCenter
+	v.heroDesc1Label.Alignment = d2ui.HorizontalAlignCenter
 	v.heroDesc1Label.SetPosition(heroDescLine1X, heroDescLine1Y)
 
 	v.heroDesc2Label = v.uiManager.NewLabel(d2resource.Font16, d2resource.PaletteUnits)
-	v.heroDesc2Label.Alignment = d2gui.HorizontalAlignCenter
+	v.heroDesc2Label.Alignment = d2ui.HorizontalAlignCenter
 	v.heroDesc2Label.SetPosition(heroDescLine2X, heroDescLine2Y)
 
 	v.heroDesc3Label = v.uiManager.NewLabel(d2resource.Font16, d2resource.PaletteUnits)
-	v.heroDesc3Label.Alignment = d2gui.HorizontalAlignCenter
+	v.heroDesc3Label.Alignment = d2ui.HorizontalAlignCenter
 	v.heroDesc3Label.SetPosition(heroDescLine3X, heroDescLine3Y)
 
 	v.heroNameLabel = v.uiManager.NewLabel(d2resource.Font16, d2resource.PaletteUnits)
-	v.heroNameLabel.Alignment = d2gui.HorizontalAlignLeft
+	v.heroNameLabel.Alignment = d2ui.HorizontalAlignLeft
 	v.heroNameLabel.SetText(d2ui.ColorTokenize("Character Name", d2ui.ColorTokenGold))
 	v.heroNameLabel.SetPosition(heroNameLabelX, heroNameLabelY)
 
 	v.expansionCharLabel = v.uiManager.NewLabel(d2resource.Font16, d2resource.PaletteUnits)
-	v.expansionCharLabel.Alignment = d2gui.HorizontalAlignLeft
+	v.expansionCharLabel.Alignment = d2ui.HorizontalAlignLeft
 	v.expansionCharLabel.SetText(d2ui.ColorTokenize("EXPANSION CHARACTER", d2ui.ColorTokenGold))
 	v.expansionCharLabel.SetPosition(expansionLabelX, expansionLabelY)
 
 	v.hardcoreCharLabel = v.uiManager.NewLabel(d2resource.Font16, d2resource.PaletteUnits)
-	v.hardcoreCharLabel.Alignment = d2gui.HorizontalAlignLeft
+	v.hardcoreCharLabel.Alignment = d2ui.HorizontalAlignLeft
 	v.hardcoreCharLabel.SetText(d2ui.ColorTokenize("Hardcore", d2ui.ColorTokenGold))
 	v.hardcoreCharLabel.SetPosition(hardcoreLabelX, hardcoreLabelY)
 }
@@ -512,10 +510,7 @@ func (v *SelectHeroClass) onOkButtonClicked() {
 
 // Render renders the Select Hero Class screen
 func (v *SelectHeroClass) Render(screen d2interface.Surface) {
-	if err := v.bgImage.RenderSegmented(screen, 4, 3, 0); err != nil {
-		return
-	}
-
+	v.bgImage.RenderSegmented(screen, 4, 3, 0)
 	v.headingLabel.Render(screen)
 
 	if v.selectedHero != d2enum.HeroNone {
@@ -683,25 +678,25 @@ func (v *SelectHeroClass) updateHeroText() {
 	case d2enum.HeroNone:
 		return
 	case d2enum.HeroBarbarian:
-		v.heroClassLabel.SetText(d2tbl.TranslateString("partycharbar"))
+		v.heroClassLabel.SetText(v.asset.TranslateString("partycharbar"))
 		v.setDescLabels("He is unequaled in close-quarters combat and mastery of weapons.")
 	case d2enum.HeroNecromancer:
-		v.heroClassLabel.SetText(d2tbl.TranslateString("partycharnec"))
+		v.heroClassLabel.SetText(v.asset.TranslateString("partycharnec"))
 		v.setDescLabels("Summoning undead minions and cursing his enemies are his specialties.")
 	case d2enum.HeroPaladin:
-		v.heroClassLabel.SetText(d2tbl.TranslateString("partycharpal"))
+		v.heroClassLabel.SetText(v.asset.TranslateString("partycharpal"))
 		v.setDescLabels("He is a natural party leader, holy man, and blessed warrior.")
 	case d2enum.HeroAssassin:
-		v.heroClassLabel.SetText(d2tbl.TranslateString("partycharass"))
+		v.heroClassLabel.SetText(v.asset.TranslateString("partycharass"))
 		v.setDescLabels("Schooled in the Martial Arts, her mind and body are deadly weapons.")
 	case d2enum.HeroSorceress:
-		v.heroClassLabel.SetText(d2tbl.TranslateString("partycharsor"))
+		v.heroClassLabel.SetText(v.asset.TranslateString("partycharsor"))
 		v.setDescLabels("She has mastered the elemental magicks -- fire, lightning, and ice.")
 	case d2enum.HeroAmazon:
-		v.heroClassLabel.SetText(d2tbl.TranslateString("partycharama"))
+		v.heroClassLabel.SetText(v.asset.TranslateString("partycharama"))
 		v.setDescLabels("Skilled with the spear and the bow, she is a very versatile fighter.")
 	case d2enum.HeroDruid:
-		v.heroClassLabel.SetText(d2tbl.TranslateString("partychardru"))
+		v.heroClassLabel.SetText(v.asset.TranslateString("partychardru"))
 		v.setDescLabels("Commanding the forces of nature, he summons wild beasts and raging storms to his side.")
 	}
 }
@@ -712,7 +707,7 @@ const (
 )
 
 func (v *SelectHeroClass) setDescLabels(descKey string) {
-	heroDesc := d2tbl.TranslateString(descKey)
+	heroDesc := v.asset.TranslateString(descKey)
 	parts := d2util.SplitIntoLinesWithMaxWidth(heroDesc, heroDescCharWidth)
 
 	numLines := len(parts)

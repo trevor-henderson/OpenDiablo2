@@ -6,6 +6,16 @@ const (
 
 	LoadingScreen = "/data/global/ui/Loading/loadingscreen.dc6"
 
+	// --- Video Paths ---
+
+	Act1Intro = "/data/local/video/eng/d2intro640x292.bik"
+	Act2Intro = "/data/local/video/eng/act02start640x292.bik"
+	Act3Intro = "/data/local/video/eng/act03start640x292.bik"
+	Act4Intro = "/data/local/video/eng/act04start640x292.bik"
+	Act4Outro = "/data/local/video/eng/act04end640x292.bik"
+	Act5Intro = "/data/local/video/eng/d2x_intro_640x292.bik"
+	Act5Outro = "/data/local/video/eng/d2x_out_640x292.bik"
+
 	// --- Main Menu ---
 
 	TrademarkScreen       = "/data/global/ui/FrontEnd/trademarkscreenEXP.dc6"
@@ -20,6 +30,10 @@ const (
 
 	CreditsBackground = "/data/global/ui/CharSelect/creditsbckgexpand.dc6"
 	CreditsText       = "/data/local/ui/{LANG}/ExpansionCredits.txt"
+
+	// --- Cinematics ---
+
+	CinematicsBackground = "/data/global/ui/FrontEnd/CinematicsSelectionEXP.dc6"
 
 	// --- Character Select Screen ---
 
@@ -97,6 +111,14 @@ const (
 	HelpYellowBullet = "/data/global/ui/MENU/helpyellowbullet.DC6"
 	HelpWhiteBullet  = "/data/global/ui/MENU/helpwhitebullet.DC6"
 
+	// Box pieces, used in all in game boxes like npc interaction menu on click,
+	// the chat window and the key binding menu
+	BoxPieces = "/data/global/ui/MENU/boxpieces.DC6"
+
+	// TextSlider contains the pieces to build a scrollbar in the
+	// menus, such as the one in the configure keys menu
+	TextSlider = "/data/global/ui/MENU/textslid.DC6"
+
 	// Issue #685 - used in the mini-panel
 	GameSmallMenuButton = "/data/global/ui/PANEL/menubutton.DC6"
 	SkillIcon           = "/data/global/ui/PANEL/Skillicon.DC6"
@@ -137,6 +159,14 @@ const (
 	TallButtonBlank   = "/data/global/ui/CharSelect/TallButtonBlank.dc6"
 	Checkbox          = "/data/global/ui/FrontEnd/clickbox.dc6"
 	Scrollbar         = "/data/global/ui/PANEL/scrollbar.dc6"
+
+	PopUpLarge     = "/data/global/ui/FrontEnd/PopUpLarge.dc6"
+	PopUpLargest   = "/data/global/ui/FrontEnd/PopUpLargest.dc6"
+	PopUpWide      = "/data/global/ui/FrontEnd/PopUpWide.dc6"
+	PopUpOk        = "/data/global/ui/FrontEnd/PopUpOk.dc6"
+	PopUpOk2       = "/data/global/ui/FrontEnd/PopUpOk.dc6"
+	PopUpOkCancel2 = "/data/global/ui/FrontEnd/PopUpOkCancel2.dc6"
+	PopUp340x224   = "/data/global/ui/FrontEnd/PopUp_340x224.dc6"
 
 	// --- GAME UI ---
 

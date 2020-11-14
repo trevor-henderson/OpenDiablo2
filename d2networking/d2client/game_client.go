@@ -156,6 +156,9 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		// https://github.com/OpenDiablo2/OpenDiablo2/issues/802
 		log.Print("Server has been closed")
 		os.Exit(0)
+	case d2netpackettype.ServerFull:
+		log.Println("Server is full")
+		os.Exit(0)
 	default:
 		log.Fatalf("Invalid packet type: %d", packet.PacketType)
 	}
@@ -207,7 +210,7 @@ func (g *GameClient) handleAddPlayerPacket(packet d2netpacket.NetPacket) error {
 	d2hero.HydrateSkills(player.Skills, g.asset)
 
 	newPlayer := g.MapEngine.NewPlayer(player.ID, player.Name, player.X, player.Y, 0,
-		player.HeroType, player.Stats, player.Skills, &player.Equipment)
+		player.HeroType, player.Stats, player.Skills, &player.Equipment, player.LeftSkill, player.RightSkill)
 
 	g.Players[newPlayer.ID()] = newPlayer
 	g.MapEngine.AddEntity(newPlayer)

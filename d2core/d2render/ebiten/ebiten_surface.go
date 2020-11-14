@@ -11,7 +11,7 @@ import (
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2interface"
-	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2util"
+	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2ui"
 )
 
 // static check that we implement our interface
@@ -137,6 +137,20 @@ func (s *ebitenSurface) PopN(n int) {
 	}
 }
 
+func (s *ebitenSurface) RenderSprite(sprite *d2ui.Sprite) {
+	opts := s.createDrawImageOptions()
+
+	if s.stateCurrent.brightness != 1 || s.stateCurrent.saturation != 1 {
+		opts.ColorM.ChangeHSV(0, s.stateCurrent.saturation, s.stateCurrent.brightness)
+	}
+
+	s.handleStateEffect(opts)
+
+	opts.CompositeMode = ebiten.CompositeModeSourceOver
+
+	sprite.Render(s)
+}
+
 // Render renders the given surface
 func (s *ebitenSurface) Render(sfc d2interface.Surface) {
 	opts := s.createDrawImageOptions()
@@ -146,6 +160,8 @@ func (s *ebitenSurface) Render(sfc d2interface.Surface) {
 	}
 
 	s.handleStateEffect(opts)
+
+	opts.CompositeMode = ebiten.CompositeModeSourceOver
 
 	s.image.DrawImage(sfc.(*ebitenSurface).image, opts)
 }
@@ -208,7 +224,7 @@ func (s *ebitenSurface) handleStateEffect(opts *ebiten.DrawImageOptions) {
 // DrawTextf renders the string to the surface with the given format string and a set of parameters
 func (s *ebitenSurface) DrawTextf(format string, params ...interface{}) {
 	str := fmt.Sprintf(format, params...)
-	d2util.DebugPrinter.PrintAt(s.image, str, s.stateCurrent.x, s.stateCurrent.y)
+	s.Renderer().PrintAt(s.image, str, s.stateCurrent.x, s.stateCurrent.y)
 }
 
 // DrawLine draws a line

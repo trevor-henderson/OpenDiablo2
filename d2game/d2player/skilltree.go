@@ -5,11 +5,9 @@ import (
 	"log"
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
-	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2fileformats/d2tbl"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2interface"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2resource"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2asset"
-	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2gui"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2hero"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2ui"
 )
@@ -22,11 +20,6 @@ const (
 
 	availSPLabelX = 677
 	availSPLabelY = 72
-
-	skillIconXOff  = 346
-	skillIconYOff  = 59
-	skillIconDistX = 69
-	skillIconDistY = 68
 
 	skillCloseButtonXLeft   = 416
 	skillCloseButtonXMiddle = 501
@@ -67,6 +60,11 @@ const (
 	skillTreePanelY = 64
 )
 
+const (
+	skillIconGreySat    = 0.2
+	skillIconGreyBright = 0.44
+)
+
 type skillTreeTab struct {
 	buttonText      string
 	button          *d2ui.Button
@@ -75,12 +73,11 @@ type skillTreeTab struct {
 
 func (st *skillTreeTab) createButton(uiManager *d2ui.UIManager, x, y int) {
 	st.button = uiManager.NewButton(d2ui.ButtonTypeSkillTreeTab, st.buttonText)
-	st.button.SetVisible(false)
 	st.button.SetPosition(x, y)
 }
 
 type skillTreeHeroTypeResources struct {
-	skillIcon      *d2ui.Sprite
+	skillSprite    *d2ui.Sprite
 	skillIconPath  string
 	skillPanel     *d2ui.Sprite
 	skillPanelPath string
@@ -89,11 +86,9 @@ type skillTreeHeroTypeResources struct {
 type skillTree struct {
 	resources    *skillTreeHeroTypeResources
 	asset        *d2asset.AssetManager
-	renderer     d2interface.Renderer
-	guiManager   *d2gui.GuiManager
 	uiManager    *d2ui.UIManager
-	layout       *d2gui.Layout
 	skills       map[int]*d2hero.HeroSkill
+	skillIcons   []*skillIcon
 	heroClass    d2enum.Hero
 	frame        *d2ui.UIFrame
 	availSPLabel *d2ui.Label
@@ -104,25 +99,24 @@ type skillTree struct {
 	originY      int
 	selectedTab  int
 	onCloseCb    func()
+	panelGroup   *d2ui.WidgetGroup
+	iconGroup    *d2ui.WidgetGroup
+	panel        *d2ui.CustomWidget
 }
 
 func newSkillTree(
 	skills map[int]*d2hero.HeroSkill,
 	heroClass d2enum.Hero,
 	asset *d2asset.AssetManager,
-	renderer d2interface.Renderer,
 	ui *d2ui.UIManager,
-	guiManager *d2gui.GuiManager,
 ) *skillTree {
 	st := &skillTree{
-		skills:     skills,
-		heroClass:  heroClass,
-		asset:      asset,
-		renderer:   renderer,
-		uiManager:  ui,
-		guiManager: guiManager,
-		originX:    skillTreePanelX,
-		originY:    skillTreePanelY,
+		skills:    skills,
+		heroClass: heroClass,
+		asset:     asset,
+		uiManager: ui,
+		originX:   skillTreePanelX,
+		originY:   skillTreePanelY,
 		tab: [numTabs]*skillTreeTab{
 			{},
 			{},
@@ -134,14 +128,32 @@ func newSkillTree(
 }
 
 func (s *skillTree) load() {
+	s.panelGroup = s.uiManager.NewWidgetGroup(d2ui.RenderPrioritySkilltree)
+	s.iconGroup = s.uiManager.NewWidgetGroup(d2ui.RenderPrioritySkilltreeIcon)
+
+	s.panel = s.uiManager.NewCustomWidget(s.Render, 400, 600)
+	s.panelGroup.AddWidget(s.panel)
+
 	s.frame = d2ui.NewUIFrame(s.asset, s.uiManager, d2ui.FrameRight)
+	s.panelGroup.AddWidget(s.frame)
+
 	s.closeButton = s.uiManager.NewButton(d2ui.ButtonTypeSquareClose, "")
 	s.closeButton.SetVisible(false)
 	s.closeButton.OnActivated(func() { s.Close() })
+	s.panelGroup.AddWidget(s.closeButton)
 
 	s.setHeroTypeResourcePath()
 	s.loadForHeroType()
+
+	for _, skill := range s.skills {
+		si := newSkillIcon(s.uiManager, s.resources.skillSprite, skill)
+		s.skillIcons = append(s.skillIcons, si)
+		s.iconGroup.AddWidget(si)
+	}
+
+	s.panelGroup.SetVisible(false)
 	s.setTab(0)
+	s.iconGroup.SetVisible(false)
 }
 
 func (s *skillTree) loadForHeroType() {
@@ -157,21 +169,25 @@ func (s *skillTree) loadForHeroType() {
 		log.Print(err)
 	}
 
-	s.resources.skillIcon = si
+	s.resources.skillSprite = si
 
 	s.tab[firstTab].createButton(s.uiManager, tabButtonX, tabButton0Y)
 	s.tab[firstTab].button.OnActivated(func() { s.setTab(firstTab) })
+	s.panelGroup.AddWidget(s.tab[firstTab].button)
 
 	s.tab[secondTab].createButton(s.uiManager, tabButtonX, tabButton1Y)
 	s.tab[secondTab].button.OnActivated(func() { s.setTab(secondTab) })
+	s.panelGroup.AddWidget(s.tab[secondTab].button)
 
 	s.tab[thirdTab].createButton(s.uiManager, tabButtonX, tabButton2Y)
 	s.tab[thirdTab].button.OnActivated(func() { s.setTab(thirdTab) })
+	s.panelGroup.AddWidget(s.tab[thirdTab].button)
 
 	s.availSPLabel = s.uiManager.NewLabel(d2resource.Font16, d2resource.PaletteSky)
 	s.availSPLabel.SetPosition(availSPLabelX, availSPLabelY)
-	s.availSPLabel.Alignment = d2gui.HorizontalAlignCenter
-	s.availSPLabel.SetText(makeTabString("StrSklTree1", "StrSklTree2", "StrSklTree3"))
+	s.availSPLabel.Alignment = d2ui.HorizontalAlignCenter
+	s.availSPLabel.SetText(s.makeTabString("StrSklTree1", "StrSklTree2", "StrSklTree3"))
+	s.panelGroup.AddWidget(s.availSPLabel)
 }
 
 type heroTabData struct {
@@ -180,7 +196,7 @@ type heroTabData struct {
 	closeButtonPos   [numTabs]int
 }
 
-func makeTabString(keys ...interface{}) string {
+func (s *skillTree) makeTabString(keys ...interface{}) string {
 	translations := make([]interface{}, len(keys))
 
 	token := "%s"
@@ -191,7 +207,7 @@ func makeTabString(keys ...interface{}) string {
 			format += "\n" + token
 		}
 
-		translations[idx] = d2tbl.TranslateString(key.(string))
+		translations[idx] = s.asset.TranslateString(key.(string))
 	}
 
 	return fmt.Sprintf(format, translations...)
@@ -208,9 +224,9 @@ func (s *skillTree) getTab(class d2enum.Hero) *heroTabData {
 				skillPanelPath: d2resource.SkillsPanelBarbarian,
 				skillIconPath:  d2resource.BarbarianSkills,
 			},
-			makeTabString("StrSklTree21", "StrSklTree4"),
-			makeTabString("StrSklTree21", "StrSklTree22"),
-			makeTabString("StrSklTree20"),
+			s.makeTabString("StrSklTree21", "StrSklTree4"),
+			s.makeTabString("StrSklTree21", "StrSklTree22"),
+			s.makeTabString("StrSklTree20"),
 			makeCloseButtonPos(
 				skillCloseButtonXRight,
 				skillCloseButtonXLeft,
@@ -221,9 +237,9 @@ func (s *skillTree) getTab(class d2enum.Hero) *heroTabData {
 				skillPanelPath: d2resource.SkillsPanelNecromancer,
 				skillIconPath:  d2resource.NecromancerSkills,
 			},
-			makeTabString("StrSklTree19"),
-			makeTabString("StrSklTree17", "StrSklTree18", "StrSklTree5"),
-			makeTabString("StrSklTree16", "StrSklTree5"),
+			s.makeTabString("StrSklTree19"),
+			s.makeTabString("StrSklTree17", "StrSklTree18", "StrSklTree5"),
+			s.makeTabString("StrSklTree16", "StrSklTree5"),
 			makeCloseButtonPos(
 				skillCloseButtonXLeft,
 				skillCloseButtonXRight,
@@ -234,9 +250,9 @@ func (s *skillTree) getTab(class d2enum.Hero) *heroTabData {
 				skillPanelPath: d2resource.SkillsPanelPaladin,
 				skillIconPath:  d2resource.PaladinSkills,
 			},
-			makeTabString("StrSklTree15", "StrSklTree4"),
-			makeTabString("StrSklTree14", "StrSklTree13"),
-			makeTabString("StrSklTree12", "StrSklTree13"),
+			s.makeTabString("StrSklTree15", "StrSklTree4"),
+			s.makeTabString("StrSklTree14", "StrSklTree13"),
+			s.makeTabString("StrSklTree12", "StrSklTree13"),
 			makeCloseButtonPos(
 				skillCloseButtonXLeft,
 				skillCloseButtonXMiddle,
@@ -247,9 +263,9 @@ func (s *skillTree) getTab(class d2enum.Hero) *heroTabData {
 				skillPanelPath: d2resource.SkillsPanelAssassin,
 				skillIconPath:  d2resource.AssassinSkills,
 			},
-			makeTabString("StrSklTree30"),
-			makeTabString("StrSklTree31", "StrSklTree32"),
-			makeTabString("StrSklTree33", "StrSklTree34"),
+			s.makeTabString("StrSklTree30"),
+			s.makeTabString("StrSklTree31", "StrSklTree32"),
+			s.makeTabString("StrSklTree33", "StrSklTree34"),
 			makeCloseButtonPos(
 				skillCloseButtonXMiddle,
 				skillCloseButtonXRight,
@@ -260,9 +276,9 @@ func (s *skillTree) getTab(class d2enum.Hero) *heroTabData {
 				skillPanelPath: d2resource.SkillsPanelSorcerer,
 				skillIconPath:  d2resource.SorcererSkills,
 			},
-			makeTabString("StrSklTree25", "StrSklTree5"),
-			makeTabString("StrSklTree24", "StrSklTree5"),
-			makeTabString("StrSklTree23", "StrSklTree5"),
+			s.makeTabString("StrSklTree25", "StrSklTree5"),
+			s.makeTabString("StrSklTree24", "StrSklTree5"),
+			s.makeTabString("StrSklTree23", "StrSklTree5"),
 			makeCloseButtonPos(
 				skillCloseButtonXLeft,
 				skillCloseButtonXLeft,
@@ -273,9 +289,9 @@ func (s *skillTree) getTab(class d2enum.Hero) *heroTabData {
 				skillPanelPath: d2resource.SkillsPanelAmazon,
 				skillIconPath:  d2resource.AmazonSkills,
 			},
-			makeTabString("StrSklTree10", "StrSklTree11", "StrSklTree4"),
-			makeTabString("StrSklTree8", "StrSklTree9", "StrSklTree4"),
-			makeTabString("StrSklTree6", "StrSklTree7", "StrSklTree4"),
+			s.makeTabString("StrSklTree10", "StrSklTree11", "StrSklTree4"),
+			s.makeTabString("StrSklTree8", "StrSklTree9", "StrSklTree4"),
+			s.makeTabString("StrSklTree6", "StrSklTree7", "StrSklTree4"),
 			makeCloseButtonPos(
 				skillCloseButtonXRight,
 				skillCloseButtonXMiddle,
@@ -286,9 +302,9 @@ func (s *skillTree) getTab(class d2enum.Hero) *heroTabData {
 				skillPanelPath: d2resource.SkillsPanelDruid,
 				skillIconPath:  d2resource.DruidSkills,
 			},
-			makeTabString("StrSklTree26"),
-			makeTabString("StrSklTree27", "StrSklTree28"),
-			makeTabString("StrSklTree29"),
+			s.makeTabString("StrSklTree26"),
+			s.makeTabString("StrSklTree27", "StrSklTree28"),
+			s.makeTabString("StrSklTree29"),
 			makeCloseButtonPos(
 				skillCloseButtonXRight,
 				skillCloseButtonXRight,
@@ -329,12 +345,9 @@ func (s *skillTree) Toggle() {
 // Close the skill tree
 func (s *skillTree) Close() {
 	s.isOpen = false
-	s.guiManager.SetLayout(nil)
-	s.closeButton.SetVisible(false)
 
-	for i := 0; i < numTabs; i++ {
-		s.tab[i].button.SetVisible(false)
-	}
+	s.panelGroup.SetVisible(false)
+	s.iconGroup.SetVisible(false)
 
 	s.onCloseCb()
 }
@@ -342,17 +355,11 @@ func (s *skillTree) Close() {
 // Open the skill tree
 func (s *skillTree) Open() {
 	s.isOpen = true
-	if s.layout == nil {
-		s.layout = d2gui.CreateLayout(s.renderer, d2gui.PositionTypeHorizontal, s.asset)
-	}
 
-	s.closeButton.SetVisible(true)
+	s.panelGroup.SetVisible(true)
 
-	for i := 0; i < numTabs; i++ {
-		s.tab[i].button.SetVisible(true)
-	}
-
-	s.guiManager.SetLayout(s.layout)
+	// we only want to enable the icons of our current tab again
+	s.setTab(s.selectedTab)
 }
 
 func (s *skillTree) IsOpen() bool {
@@ -367,75 +374,59 @@ func (s *skillTree) SetOnCloseCb(cb func()) {
 func (s *skillTree) setTab(tab int) {
 	s.selectedTab = tab
 	s.closeButton.SetPosition(s.tab[tab].closeButtonPosX, skillCloseButtonY)
+
+	for _, si := range s.skillIcons {
+		si.SetVisible(si.skill.SkillPage == tab+1)
+	}
 }
 
 func (s *skillTree) renderPanelSegment(
 	target d2interface.Surface,
-	frame int) error {
+	frame int) {
 	if err := s.resources.skillPanel.SetCurrentFrame(frame); err != nil {
-		return err
+		log.Printf("%e", err)
+		return
 	}
 
 	s.resources.skillPanel.Render(target)
-
-	return nil
 }
 
-func (s *skillTree) renderTabCommon(target d2interface.Surface) error {
+func (s *skillTree) renderTabCommon(target d2interface.Surface) {
 	skillPanel := s.resources.skillPanel
 	x, y := s.originX, s.originY
 
 	// top
 	w, h, err := skillPanel.GetFrameSize(frameCommonTabTopLeft)
 	if err != nil {
-		return err
+		log.Printf("%e", err)
+		return
 	}
 
 	y += h
 
 	skillPanel.SetPosition(x, y)
-
-	err = s.renderPanelSegment(target, frameCommonTabTopLeft)
-	if err != nil {
-		return err
-	}
+	s.renderPanelSegment(target, frameCommonTabTopLeft)
 
 	skillPanel.SetPosition(x+w, y)
-
-	err = s.renderPanelSegment(target, frameCommonTabTopRight)
-	if err != nil {
-		return err
-	}
+	s.renderPanelSegment(target, frameCommonTabTopRight)
 
 	// bottom
 	_, h, err = skillPanel.GetFrameSize(frameCommonTabBottomLeft)
 	if err != nil {
-		return err
+		log.Printf("%e", err)
+		return
 	}
 
 	y += h
 
 	skillPanel.SetPosition(x, y)
-
-	err = s.renderPanelSegment(target, frameCommonTabBottomLeft)
-	if err != nil {
-		return err
-	}
+	s.renderPanelSegment(target, frameCommonTabBottomLeft)
 
 	skillPanel.SetPosition(x+w, y)
-
-	err = s.renderPanelSegment(target, frameCommonTabBottomRight)
-	if err != nil {
-		return err
-	}
-
-	// available skill points label
-	s.availSPLabel.Render(target)
-
-	return nil
+	s.renderPanelSegment(target, frameCommonTabBottomRight)
 }
 
-func (s *skillTree) renderTab(target d2interface.Surface, tab int) error {
+func (s *skillTree) renderTab(target d2interface.Surface, tab int) {
 	topFrame := frameOffsetTop + (tabIndexOffset * tab)
 	bottomFrame := frameOffsetBottom + (tabIndexOffset * tab)
 
@@ -445,106 +436,46 @@ func (s *skillTree) renderTab(target d2interface.Surface, tab int) error {
 	// top
 	_, h0, err := skillPanel.GetFrameSize(topFrame)
 	if err != nil {
-		return err
+		log.Printf("%e", err)
+		return
 	}
 
 	y += h0
 
 	skillPanel.SetPosition(x, y)
-
-	err = s.renderPanelSegment(target, topFrame)
-	if err != nil {
-		return err
-	}
+	s.renderPanelSegment(target, topFrame)
 
 	// bottom
 	w, h1, err := skillPanel.GetFrameSize(bottomFrame)
 	if err != nil {
-		return err
+		log.Printf("%e", err)
+		return
 	}
 
 	skillPanel.SetPosition(x, y+h1)
 
-	if err := s.renderPanelSegment(target, bottomFrame); err != nil {
-		return err
-	}
+	s.renderPanelSegment(target, bottomFrame)
 
 	// tab button highlighted
 	switch tab {
 	case firstTab:
 		skillPanel.SetPosition(x+w, y+h1)
-
-		if err := s.renderPanelSegment(target, frameSelectedTab1Full); err != nil {
-			return err
-		}
+		s.renderPanelSegment(target, frameSelectedTab1Full)
 	case secondTab:
 		x += w
 		skillPanel.SetPosition(x, s.originY+h0)
-
-		if err := s.renderPanelSegment(target, frameSelectedTab2Top); err != nil {
-			return err
-		}
+		s.renderPanelSegment(target, frameSelectedTab2Top)
 
 		skillPanel.SetPosition(x, y+h1)
-
-		if err := s.renderPanelSegment(target, frameSelectedTab2Bottom); err != nil {
-			return err
-		}
+		s.renderPanelSegment(target, frameSelectedTab2Bottom)
 	case thirdTab:
 		skillPanel.SetPosition(x+w, y)
-
-		if err := s.renderPanelSegment(target, frameSelectedTab3Full); err != nil {
-			return err
-		}
+		s.renderPanelSegment(target, frameSelectedTab3Full)
 	}
-
-	return nil
-}
-
-func (s *skillTree) renderSkillIcons(target d2interface.Surface, tab int) error {
-	skillIcon := s.resources.skillIcon
-
-	for idx := range s.skills {
-		skill := s.skills[idx]
-		if skill.SkillPage != tab+1 {
-			continue
-		}
-
-		if err := skillIcon.SetCurrentFrame(skill.IconCel); err != nil {
-			return err
-		}
-
-		x := skillIconXOff + skill.SkillColumn*skillIconDistX
-		y := skillIconYOff + skill.SkillRow*skillIconDistY
-
-		skillIcon.SetPosition(x, y)
-		skillIcon.Render(target)
-	}
-
-	return nil
 }
 
 // Render the skill tree panel
-func (s *skillTree) Render(target d2interface.Surface) error {
-	if !s.isOpen {
-		return nil
-	}
-
-	if err := s.frame.Render(target); err != nil {
-		return err
-	}
-
-	if err := s.renderTabCommon(target); err != nil {
-		return err
-	}
-
-	if err := s.renderTab(target, s.selectedTab); err != nil {
-		return err
-	}
-
-	if err := s.renderSkillIcons(target, s.selectedTab); err != nil {
-		return err
-	}
-
-	return nil
+func (s *skillTree) Render(target d2interface.Surface) {
+	s.renderTabCommon(target)
+	s.renderTab(target, s.selectedTab)
 }

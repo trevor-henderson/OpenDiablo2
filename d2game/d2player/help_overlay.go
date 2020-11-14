@@ -1,12 +1,11 @@
-// Package help contains the in-game diablo2 help panel
-package help
+package d2player
 
 import (
 	"fmt"
 	"image/color"
 	"log"
 
-	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2fileformats/d2tbl"
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2resource"
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2interface"
@@ -157,8 +156,8 @@ const (
 	beltDotY   = 568
 )
 
-// Overlay represents the in-game overlay that toggles visibility when the h key is pressed
-type Overlay struct {
+// HelpOverlay represents the in-game overlay that toggles visibility when the h key is pressed
+type HelpOverlay struct {
 	asset       *d2asset.AssetManager
 	isOpen      bool
 	renderer    d2interface.Renderer
@@ -169,6 +168,7 @@ type Overlay struct {
 	layout      *d2gui.Layout
 	closeButton *d2ui.Button
 	guiManager  *d2gui.GuiManager
+	keyMap      *KeyMap
 }
 
 // NewHelpOverlay creates a new HelpOverlay instance
@@ -177,35 +177,38 @@ func NewHelpOverlay(
 	renderer d2interface.Renderer,
 	ui *d2ui.UIManager,
 	guiManager *d2gui.GuiManager,
-) *Overlay {
-	h := &Overlay{
+	keyMap *KeyMap,
+) *HelpOverlay {
+	h := &HelpOverlay{
 		asset:      asset,
 		renderer:   renderer,
 		uiManager:  ui,
 		guiManager: guiManager,
+		keyMap:     keyMap,
 	}
 
 	return h
 }
 
 // Toggle the visibility state of the overlay
-func (h *Overlay) Toggle() {
+func (h *HelpOverlay) Toggle() {
 	fmt.Print("Help overlay toggled\n")
 
 	if h.isOpen {
-		h.close()
+		h.Close()
 	} else {
 		h.open()
 	}
 }
 
-func (h *Overlay) close() {
+// Close will hide the help overlay
+func (h *HelpOverlay) Close() {
 	h.isOpen = false
 	h.closeButton.SetVisible(false)
 	h.guiManager.SetLayout(nil)
 }
 
-func (h *Overlay) open() {
+func (h *HelpOverlay) open() {
 	h.isOpen = true
 	if h.layout == nil {
 		h.layout = d2gui.CreateLayout(h.renderer, d2gui.PositionTypeHorizontal, h.asset)
@@ -218,12 +221,12 @@ func (h *Overlay) open() {
 }
 
 // IsOpen returns whether or not the overlay is visible/open
-func (h *Overlay) IsOpen() bool {
+func (h *HelpOverlay) IsOpen() bool {
 	return h.isOpen
 }
 
 // IsInRect checks if the given point is within the overlay layout rectangle
-func (h *Overlay) IsInRect(px, py int) bool {
+func (h *HelpOverlay) IsInRect(px, py int) bool {
 	ww, hh := h.layout.GetSize()
 	x, y := h.layout.GetPosition()
 
@@ -235,14 +238,14 @@ func (h *Overlay) IsInRect(px, py int) bool {
 }
 
 // Load the overlay graphical assets
-func (h *Overlay) Load() {
+func (h *HelpOverlay) Load() {
 	h.setupOverlayFrame()
 	h.setupTitleAndButton()
 	h.setupBulletedList()
 	h.setupLabelsWithLines()
 }
 
-func (h *Overlay) setupOverlayFrame() {
+func (h *HelpOverlay) setupOverlayFrame() {
 	frames := []int{
 		frameTopLeft,
 		frameBottomLeft,
@@ -304,9 +307,9 @@ func (h *Overlay) setupOverlayFrame() {
 	}
 }
 
-func (h *Overlay) setupTitleAndButton() {
+func (h *HelpOverlay) setupTitleAndButton() {
 	// Title
-	text := d2tbl.TranslateString("Strhelp1") // "Diablo II Help"
+	text := h.asset.TranslateString("Strhelp1") // "Diablo II Help"
 	newLabel := h.uiManager.NewLabel(d2resource.Font16, d2resource.PaletteSky)
 	newLabel.SetText(text)
 
@@ -319,43 +322,58 @@ func (h *Overlay) setupTitleAndButton() {
 	h.closeButton = h.uiManager.NewButton(d2ui.ButtonTypeSquareClose, "")
 	h.closeButton.SetPosition(closeButtonX, closeButtonY)
 	h.closeButton.SetVisible(false)
-	h.closeButton.OnActivated(func() { h.close() })
+	h.closeButton.OnActivated(func() { h.Close() })
 
 	newLabel = h.uiManager.NewLabel(d2resource.Font16, d2resource.PaletteSky)
-	newLabel.SetText(d2tbl.TranslateString("strClose")) // "Close"
+	newLabel.SetText(h.asset.TranslateString("strClose")) // "Close"
 	newLabel.SetPosition(closeButtonLabelX, closeButtonLabelY)
 	h.text = append(h.text, newLabel)
 }
 
-func (h *Overlay) setupBulletedList() {
+func (h *HelpOverlay) setupBulletedList() {
 	// Bullets
 	// the hotkeys displayed here should be pulled from a mapping of input events to game events
 	// https://github.com/OpenDiablo2/OpenDiablo2/issues/793
 	// https://github.com/OpenDiablo2/OpenDiablo2/issues/794
 	callouts := []struct{ text string }{
 		// "Ctrl" should be hotkey // "Hold Down <%s> to Run"
-		{text: fmt.Sprintf(d2tbl.TranslateString("StrHelp2"), "Ctrl")},
+		{text: fmt.Sprintf(
+			h.asset.TranslateString("StrHelp2"),
+			h.keyMap.KeyToString(h.keyMap.GetKeysForGameEvent(d2enum.HoldRun).Primary),
+		)},
 
 		// "Alt" should be hotkey // "Hold down <%s> to highlight items on the ground"
-		{text: fmt.Sprintf(d2tbl.TranslateString("StrHelp3"), "Alt")},
+		{text: fmt.Sprintf(
+			h.asset.TranslateString("StrHelp3"),
+			h.keyMap.KeyToString(h.keyMap.GetKeysForGameEvent(d2enum.HoldShowGroundItems).Primary),
+		)},
 
 		// "Shift" should be hotkey // "Hold down <%s> to attack while standing still"
-		{text: fmt.Sprintf(d2tbl.TranslateString("StrHelp4"), "Shift")},
+		{text: fmt.Sprintf(
+			h.asset.TranslateString("StrHelp4"),
+			h.keyMap.KeyToString(h.keyMap.GetKeysForGameEvent(d2enum.HoldStandStill).Primary),
+		)},
 
 		// "Tab" should be hotkey // "Hit <%s> to toggle the automap on and off"
-		{text: fmt.Sprintf(d2tbl.TranslateString("StrHelp5"), "Tab")},
+		{text: fmt.Sprintf(
+			h.asset.TranslateString("StrHelp5"),
+			h.keyMap.KeyToString(h.keyMap.GetKeysForGameEvent(d2enum.ToggleAutomap).Primary),
+		)},
 
 		// "Hit <Esc> to bring up the Game Menu"
-		{text: d2tbl.TranslateString("StrHelp6")},
+		{text: h.asset.TranslateString("StrHelp6")},
 
 		// "Hit <Enter> to go into chat mode"
-		{text: d2tbl.TranslateString("StrHelp7")},
+		{text: h.asset.TranslateString("StrHelp7")},
 
 		// "Hit F1-F8 to set your Left or Right Mouse Buttton Skills."
-		{text: d2tbl.TranslateString("StrHelp8")},
+		{text: h.asset.TranslateString("StrHelp8")},
 
 		// "H" should be hotkey,
-		{text: fmt.Sprintf(d2tbl.TranslateString("StrHelp8a"), "H")},
+		{text: fmt.Sprintf(
+			h.asset.TranslateString("StrHelp8a"),
+			h.keyMap.KeyToString(h.keyMap.GetKeysForGameEvent(d2enum.ToggleHelpScreen).Primary),
+		)},
 	}
 
 	for idx := range callouts {
@@ -372,9 +390,9 @@ func (h *Overlay) setupBulletedList() {
 }
 
 // nolint:funlen // can't reduce
-func (h *Overlay) setupLabelsWithLines() {
+func (h *HelpOverlay) setupLabelsWithLines() {
 	h.createCallout(callout{
-		LabelText: d2tbl.TranslateString("strlvlup"), // "New Stats"
+		LabelText: h.asset.TranslateString("strlvlup"), // "New Stats"
 		LabelX:    newStatsLabelX,
 		LabelY:    newStatsLabelY,
 		DotX:      newStatsDotX,
@@ -382,7 +400,7 @@ func (h *Overlay) setupLabelsWithLines() {
 	})
 
 	h.createCallout(callout{
-		LabelText: d2tbl.TranslateString("strnewskl"), // "New Skill"
+		LabelText: h.asset.TranslateString("strnewskl"), // "New Skill"
 		LabelX:    newSkillLabelX,
 		LabelY:    newSkillLabelY,
 		DotX:      newSkillDotX,
@@ -391,19 +409,19 @@ func (h *Overlay) setupLabelsWithLines() {
 
 	// Some of the help fonts require mulktiple lines.
 	h.createLabel(callout{
-		LabelText: d2tbl.TranslateString("StrHelp10"), // "Left Mouse-"
+		LabelText: h.asset.TranslateString("StrHelp10"), // "Left Mouse-"
 		LabelX:    leftMouseLabelX,
 		LabelY:    leftMouseLabelY,
 	})
 
 	h.createLabel(callout{
-		LabelText: d2tbl.TranslateString("StrHelp11"), // "Button Skill"
+		LabelText: h.asset.TranslateString("StrHelp11"), // "Button Skill"
 		LabelX:    leftButtonSkillLabelX,
 		LabelY:    leftButtonSkillLabelY,
 	})
 
 	h.createCallout(callout{
-		LabelText: d2tbl.TranslateString("StrHelp12"), // "(Click to Change)"
+		LabelText: h.asset.TranslateString("StrHelp12"), // "(Click to Change)"
 		LabelX:    leftSkillClickToChangeLabelX,
 		LabelY:    leftSkillClickToChangeLabelY,
 		DotX:      leftSkillClickToChangeDotX,
@@ -411,19 +429,19 @@ func (h *Overlay) setupLabelsWithLines() {
 	})
 
 	h.createLabel(callout{
-		LabelText: d2tbl.TranslateString("StrHelp13"), // "Right Mouse"
+		LabelText: h.asset.TranslateString("StrHelp13"), // "Right Mouse"
 		LabelX:    rightMouseLabelX,
 		LabelY:    rightMouseLabelY,
 	})
 
 	h.createLabel(callout{
-		LabelText: d2tbl.TranslateString("StrHelp11"), // "Button Skill"
+		LabelText: h.asset.TranslateString("StrHelp11"), // "Button Skill"
 		LabelX:    rightButtonSkillLabelX,
 		LabelY:    rightButtonSkillLabelY,
 	})
 
 	h.createCallout(callout{
-		LabelText: d2tbl.TranslateString("StrHelp12"), // "(Click to Change)"
+		LabelText: h.asset.TranslateString("StrHelp12"), // "(Click to Change)"
 		LabelX:    rightSkillClickToChangeLabelX,
 		LabelY:    rightSkillClickToChangeLabelY,
 		DotX:      rightSkillClickToChangeDotX,
@@ -431,25 +449,25 @@ func (h *Overlay) setupLabelsWithLines() {
 	})
 
 	h.createLabel(callout{
-		LabelText: d2tbl.TranslateString("StrHelp17"), // "Mini-Panel"
+		LabelText: h.asset.TranslateString("StrHelp17"), // "Mini-Panel"
 		LabelX:    miniPanelLabelX,
 		LabelY:    miniPanelLabelY,
 	})
 
 	h.createLabel(callout{
-		LabelText: d2tbl.TranslateString("StrHelp18"), // "(Opens Character,"
+		LabelText: h.asset.TranslateString("StrHelp18"), // "(Opens Character,"
 		LabelX:    characterLabelX,
 		LabelY:    characterLabelY,
 	})
 
 	h.createLabel(callout{
-		LabelText: d2tbl.TranslateString("StrHelp19"), // "inventory, and"
+		LabelText: h.asset.TranslateString("StrHelp19"), // "inventory, and"
 		LabelX:    inventoryLabelX,
 		LabelY:    inventoryLabelY,
 	})
 
 	h.createCallout(callout{
-		LabelText: d2tbl.TranslateString("StrHelp20"), // "other screens)"
+		LabelText: h.asset.TranslateString("StrHelp20"), // "other screens)"
 		LabelX:    otherScreensLabelX,
 		LabelY:    otherScreensLabelY,
 		DotX:      otherScreensDotX,
@@ -457,7 +475,7 @@ func (h *Overlay) setupLabelsWithLines() {
 	})
 
 	h.createCallout(callout{
-		LabelText: d2tbl.TranslateString("StrHelp9"), // "Life Orb"
+		LabelText: h.asset.TranslateString("StrHelp9"), // "Life Orb"
 		LabelX:    lifeOrbLabelX,
 		LabelY:    lifeOrbLabelY,
 		DotX:      lifeOrbDotX,
@@ -465,7 +483,7 @@ func (h *Overlay) setupLabelsWithLines() {
 	})
 
 	h.createCallout(callout{
-		LabelText: d2tbl.TranslateString("StrHelp15"), // "Stamina Bar"
+		LabelText: h.asset.TranslateString("StrHelp15"), // "Stamina Bar"
 		LabelX:    staminaBarLabelX,
 		LabelY:    staminaBarLabelY,
 		DotX:      staminaBarDotX,
@@ -473,7 +491,7 @@ func (h *Overlay) setupLabelsWithLines() {
 	})
 
 	h.createCallout(callout{
-		LabelText: d2tbl.TranslateString("StrHelp22"), // "Mana Orb"
+		LabelText: h.asset.TranslateString("StrHelp22"), // "Mana Orb"
 		LabelX:    manaOrbLabelX,
 		LabelY:    manaOrbLabelY,
 		DotX:      manaOrbDotX,
@@ -481,13 +499,13 @@ func (h *Overlay) setupLabelsWithLines() {
 	})
 
 	h.createLabel(callout{
-		LabelText: d2tbl.TranslateString("StrHelp14"), // "Run/Walk"
+		LabelText: h.asset.TranslateString("StrHelp14"), // "Run/Walk"
 		LabelX:    runWalkButtonLabelX,
 		LabelY:    runWalkButtonLabelY,
 	})
 
 	h.createCallout(callout{
-		LabelText: d2tbl.TranslateString("StrHelp14a"), // "Toggle"
+		LabelText: h.asset.TranslateString("StrHelp14a"), // "Toggle"
 		LabelX:    toggleLabelX,
 		LabelY:    toggleLabelY,
 		DotX:      toggleDotX,
@@ -495,13 +513,13 @@ func (h *Overlay) setupLabelsWithLines() {
 	})
 
 	h.createLabel(callout{
-		LabelText: d2tbl.TranslateString("StrHelp16"), // "Experience"
+		LabelText: h.asset.TranslateString("StrHelp16"), // "Experience"
 		LabelX:    experienceLabelX,
 		LabelY:    experienceLabelY,
 	})
 
 	h.createCallout(callout{
-		LabelText: d2tbl.TranslateString("StrHelp16a"), // "Bar"
+		LabelText: h.asset.TranslateString("StrHelp16a"), // "Bar"
 		LabelX:    barLabelX,
 		LabelY:    barLabelY,
 		DotX:      barDotX,
@@ -509,7 +527,7 @@ func (h *Overlay) setupLabelsWithLines() {
 	})
 
 	h.createCallout(callout{
-		LabelText: d2tbl.TranslateString("StrHelp21"), // "Belt"
+		LabelText: h.asset.TranslateString("StrHelp21"), // "Belt"
 		LabelX:    beltLabelX,
 		LabelY:    beltLabelY,
 		DotX:      beltDotX,
@@ -533,7 +551,7 @@ type callout struct {
 	DotY      int
 }
 
-func (h *Overlay) createBullet(c callout) {
+func (h *HelpOverlay) createBullet(c callout) {
 	newLabel := h.uiManager.NewLabel(d2resource.FontFormal12, d2resource.PaletteSky)
 	newLabel.SetText(c.LabelText)
 	newLabel.SetPosition(c.LabelX, c.LabelY)
@@ -553,20 +571,20 @@ func (h *Overlay) createBullet(c callout) {
 	h.frames = append(h.frames, newDot)
 }
 
-func (h *Overlay) createLabel(c callout) {
+func (h *HelpOverlay) createLabel(c callout) {
 	newLabel := h.uiManager.NewLabel(d2resource.FontFormal12, d2resource.PaletteSky)
 	newLabel.SetText(c.LabelText)
 	newLabel.SetPosition(c.LabelX, c.LabelY)
 	h.text = append(h.text, newLabel)
-	newLabel.Alignment = d2gui.HorizontalAlignCenter
+	newLabel.Alignment = d2ui.HorizontalAlignCenter
 }
 
-func (h *Overlay) createCallout(c callout) {
+func (h *HelpOverlay) createCallout(c callout) {
 	newLabel := h.uiManager.NewLabel(d2resource.FontFormal12, d2resource.PaletteSky)
 	newLabel.Color[0] = color.White
 	newLabel.SetText(c.LabelText)
 	newLabel.SetPosition(c.LabelX, c.LabelY)
-	newLabel.Alignment = d2gui.HorizontalAlignCenter
+	newLabel.Alignment = d2ui.HorizontalAlignCenter
 	ww, hh := newLabel.GetTextMetrics(c.LabelText)
 	h.text = append(h.text, newLabel)
 	_ = ww
@@ -596,7 +614,7 @@ func (h *Overlay) createCallout(c callout) {
 }
 
 // Render the overlay to the given surface
-func (h *Overlay) Render(target d2interface.Surface) error {
+func (h *HelpOverlay) Render(target d2interface.Surface) error {
 	if !h.isOpen {
 		return nil
 	}
